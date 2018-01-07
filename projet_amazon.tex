@@ -1,0 +1,343 @@
+\documentclass[14pt, openany]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage[french]{babel}
+\frenchbsetup{StandardLists=true}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{graphicx}
+\usepackage[a4paper,left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{bbm}
+\usepackage{color}
+\usepackage{hyperref}
+\usepackage{libertine}
+\usepackage{array,multirow,makecell}
+\usepackage{enumitem} %Pour modifier les puces
+\usepackage{caption}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+%%% francisation des algorithmes :
+\renewcommand{\algorithmicrequire}{\textbf{Entrées : }}
+\renewcommand{\algorithmicensure}{\textbf{Début}}
+\renewcommand{\algorithmicreturn}{\textbf{Retourner}}
+\renewcommand{\algorithmicwhile}{\textbf{Tant que}}
+\renewcommand{\algorithmicdo}{\textbf{}}
+\renewcommand{\algorithmicprint}{\textbf{Fin}}
+\renewcommand{\algorithmicfor}{\textbf{Pour}}
+\renewcommand{\algorithmicendfor}{\textbf{Fin pour}}
+\renewcommand{\algorithmicendwhile}{\textbf{Fin du \og Tant que\fg }}
+
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash }b{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash }b{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash }b{#1}}
+\setlength{\parindent}{0cm}
+\setlength{\parskip}{1ex plus 0.5ex minus 0.2ex}
+\newcommand{\hsp}{\hspace{20pt}}
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+\AddThinSpaceBeforeFootnotes
+\FrenchFootnotes
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+\includegraphics[scale=1]{Images/R1.jpg}\\
+\textsc{\Large Projet Magistère Statistique et Modélisation économique}\\
+    \HRule \\[0.4cm]
+    { \huge \bfseries Application de la théorie des graphes à un exemple concret : les achats communs sur Amazon\\[0.4cm] }
+        \HRule \\[2cm]
+    \includegraphics[scale=0.4]{Images/amazon.png}
+    \\[2cm]
+    \begin{minipage}{0.4\textwidth}
+      \begin{flushleft} \large
+        \textsc{Guillaume LE FLOCH}\\
+        Année 2017-2018\\
+      \end{flushleft}
+    \end{minipage}
+    \begin{minipage}{0.4\textwidth}
+      \begin{flushright} \large
+        \emph{Encadrante : }\textsc{Mme Véronique THELEN}
+      \end{flushright}
+    \end{minipage}
+
+    \vfill
+
+\end{center}
+\end{titlepage}
+\tableofcontents
+
+\newpage
+\section{Introduction et problématique}
+\paragraph{}
+Dans ce projet, nous allons étudier les liens entre certains produits achetés sur \textbf{Amazon} à partir du jeu de données \textit{Amazon0601.txt} qui contient des associations de produits fréquemment achetés ensemble. Ces données ont été collectées le $1^{er}$ juin 2003, et sont construites de la façon suivante :
+\begin{itemize}
+\item si un produit \textit{i} est fréquemment acheté avec un produit \textit{j}, le graphe contiendra alors un lien allant de \textit{i} vers \textit{j}. C'est donc un graphe orienté.
+\item le graphe contient 403394 nœuds et 3387388 liens.
+\end{itemize}
+\paragraph{}
+En considérant ces chiffres, on comprend donc qu'on ne pourra pas représenter les données ici. Ne disposant pas de la puissance calculatoire suffisante, il ne sera également pas possible ici de travailler sur tous les produits : nous allons donc nous focaliser sur un sous-ensemble contenant les DVD uniquement. Ce sous-ensemble représente 4442 nœuds ce qui donne une représentation encore assez dense du réseau.\\
+\includegraphics[width=18cm]{Images/graphe.jpg}
+\begin{center}
+\captionof{figure}{Une telle représentation ne permet évidemment pas de tirer des conclusions}
+\label{fig1}
+\end{center}
+Cependant, grâce à l'analyse des caractéristiques de ce réseau d'achats nous allons pouvoir répondre à la problématique suivante : \textbf{identifier les produits et associations de produits phares dans le but de faire de la recommandation client}. En effet, si on arrive à identifier quels produits sont \textbf{au centre} du réseau d'achat, on sera en mesure premièrement de mettre l'accent sur ces produits au niveau publicitaire, mais également de focaliser les recommandations sur les produits auxquels ils sont associés, et dans un dernier temps de pouvoir effectuer de la prédiction sur des associations qui n'existent pas encore mais qui pourraient intéresser les acheteurs. Tout ceci se base bien évidemment sur le concept d'homophilie : on émet l'hypothèse que les acheteurs ayant des comportements d'achats similaires vont être intéressés par le même type de produits.
+\paragraph{}
+Avant de passer à l'analyse des caractéristiques de ce réseau d'achats, nous allons revenir sur certaines notions et sur le vocabulaire lié aux graphes.
+
+\section{Quelques rappels de vocabulaire}
+\paragraph{}
+Nous allons commencer cette partie en rappelant quelques définitions élémentaires et en les illustrant.
+\begin{itemize}
+\item on définit un \textbf{graphe} comme étant un ensemble de points et de lignes reliant ces points
+\item ces points sont appelés communément des \textbf{nœuds} et sont reliés par des \textbf{arcs}
+\item le graphe est orienté si l'association entre deux nœuds se fait dans un sens mais pas dans l'autre (présence de flèches sur le graphe pour représenter le sens)
+\end{itemize} 
+\includegraphics[width=17cm]{Images/digraph.png}
+\begin{center}
+\captionof{figure}{Exemple de nœuds et d'arcs au sein d'un graphe orienté}
+\label{fig1}
+\end{center}
+\paragraph{}
+De façon mathématique, on va noter un graphe comme étant $(N,g)$ avec $N$ représentant le nombre d'agents, qui dans notre étude sont les produits achetés sur \textbf{Amazon} (ou encore les $n$ nœuds du graphe), et $g$ une matrice d'adjacence de taille $n$ x $n$ telle que $g = [g_{ij}]$ avec $i,j \in N$. Dans ce projet, nous étudions un graphe orienté, ainsi $g_{ij}$ se définit de la façon suivante :
+$$
+g_{ij} = \left\{
+    \begin{array}{ll}
+        1 & \mbox{si } i \rightarrow j \\
+        0 & \mbox{sinon.}
+    \end{array}
+\right.
+$$
+La somme sur chaque colonne $j$ de la matrice nous donnera donc le nombre de degrés entrants du nœud $j$ en question. D'autres notions dont nous allons avoir besoin par la suite pour analyser notre graphe orienté sont les suivantes :
+\begin{itemize}
+\item Une \textbf{séquence} est une suite consécutive d'arcs $\{i_1, i_2\} , \{i_2, i_3\} ,…, \{i_{K-1}, i_K\}$
+\item Un \textbf{chemin} entre le nœud i et j est une séquence d'arcs
+$\{i_1, i_2\} , \{i_2, i_3\} ,…, \{i_{K-1}, i_K\}$ tel que $i_1$ = $i$ et $i_K$ = $j$ et chaque nœud dans la séquence est distinct
+\item Un \textbf{cycle} est un chemin avec un arc final revenant au nœud initial
+\item Une \textbf{distance géodésique} entre les nœuds $i$ et $j$ est le plus court chemin (avec le nombre minimum de nœuds) entre les deux nœuds. On notera $I(i,j)$ cette mesure
+\end{itemize}
+\paragraph{}
+Après avoir effectué ces quelques rappels nous pouvons donc nous diriger vers l'analyse des caractéristiques du réseau.
+\section{Analyse des caractéristiques du réseau}
+\paragraph{}
+L'enjeu de cette partie va être de réussir à dégager les grandes tendances du réseau, de découvrir quels produits se trouvent au \textbf{centre} du réseau. Pour cela nous allons donc étudier plusieurs mesures de \textbf{centralité} ou encore \og \textbf{d'importance} \fg{}, et tenter d'obtenir un \textit{Top 30} des produits les plus populaires. Le but de cette manœuvre sera de faire ressortir les produits les plus importants, qui ont rencontré le plus de succès au niveau des achats, afin de les utiliser dans la dernière partie (la prédiction) et d'optimiser la stratégie marketing d'Amazon par conséquent, en proposant de nouvelles recommandations autour de ces produits. Cela permettra de donner plus de visibilité à des produits potentiellement intéressants, qui en manquent pour le moment. Le choix des 30 premiers produits est bien évidemment arbitraire, on pourrait regarder plus de produits mais on ne retiendra que cet échantillon qui nous permettra déjà de comprendre le principe.
+
+\subsection{Degré de centralité}
+\paragraph{}
+Dans le cas d'un graphe orienté, le degré de centralité (ou centralité de degré) se définit comme étant le nombre de degrés entrants d'un nœud, c'est-à-dire que l'on va compter le nombre de liens qui pointent vers chaque nœud. De façon mathématique, cela correspond tout simplement pour un nœud $i$ à $\sum\limits_{j}g_{ij}$.\\
+La fonction \textit{in\_degree\_centrality} du module \textit{NetworkX} de Python renvoie, pour chaque nœud, une mesure différente puisqu'elle est normalisée en divisant par le degré de centralité maximum possible dans un graphe à N-1 nœuds. Cela n'a pas d'importance ici puisque l'on cherche simplement à classer les produits grâce à cette mesure, mais il est toutefois important de noter cette spécificité afin de mieux comprendre les résultats que nous renvoie le programme. Les résultats sont donc les suivants :\\
+\begin{center}
+\includegraphics[scale=0.7]{Images/in_degree.png}
+\captionof{figure}{Top 30 des produits selon le nombre de degrés entrant}
+\label{fig1}
+\end{center}
+\paragraph{}
+Nous allons maintenant nous intéresser à une mesure qui prend plutôt en compte la notion de \textbf{proximité} et de \textbf{distance} plutôt que la \og popularité \fg{}. Cela va donc nous donner les produits les plus \og homogènes \fg{}. 
+\subsection{Centralité de proximité}
+\paragraph{}
+Ici on va plutôt faire ressortir les produits qui sont les plus \og passe-partout \fg{} dans le sens où ils sont les plus neutres, ce ne sont pas des extrêmes. Cela décrit donc la centralité de proximité, qui fait appelle à la notion de distance géodésique présentée en introduction. Dans le cas d'un graphe orienté il est important de préciser que les distances \textbf{vers} un nœud sont considérées comme une mesure plus significative de centralité, puisqu'un nœud a peu de contrôle sur ses liens
+entrants (c'est le cas dans notre exemple). Cette mesure se définit donc de la façon suivante :\\
+\begin{center}
+$C_{closeness}(i)=\frac{n-1}{\sum\limits_{j=1}^{n-1}I(i,j)} $
+\end{center}
+Les résultats associés à cette mesure sont les suivants :
+\begin{center}
+\includegraphics[scale=0.7]{Images/closeness.png}
+\captionof{figure}{Top 30 des produits selon la centralité de proximité}
+\label{fig1}
+\end{center}
+\paragraph{}
+On peut d'ores et déjà constater que le classement est différent de celui renvoyé par la première mesure, ce qui n'est pas surprenant puisqu'on ne mesure pas la même chose. Nous allons à présent nous intéresser à une notion de centralité encore différente : la \textbf{centralité d'intermédiarité}.
+\subsection{Centralité d'intermédiarité}
+\paragraph{}
+Concernant cette nouvelle mesure, l'idée n'est plus de regarder la proximité ou encore distance aux autres nœuds du graphe mais plutôt de compter le nombre de fois où un nœud agit comme un point de passage le long du plus court chemin entre deux autres nœuds (distance géodésique). On définit donc cette mesure comme suit :\\
+\begin{center}
+$C_{betweenness}(k)=\frac{P_k(i,j)}{P(i,j)}$
+\end{center}
+avec :
+\begin{itemize}
+\item $P_k(i,j)$ le nombre de distances géodésiques entre $i$ et $j$ que le nœud $k$ lie
+\item $P(i,j)$ le nombre de distances géodésiques entre $i$ et $j$
+\end{itemize}
+On peut renormaliser cette quantité par $\frac{1}{(n-1)(n-2)}$ dans le cas des graphes orientés et c'est d'ailleurs ce que fait par défaut la fonction \textit{betweenness\_centrality} en Python. Encore une fois, on obtient un classement différent...
+
+\begin{center}
+\includegraphics[scale=0.7]{Images/betweenness.png}
+\captionof{figure}{Top 30 des produits selon la centralité d'intermédiarité}
+\label{fig1}
+\end{center}
+\paragraph{}
+On pourrait par exemple utiliser ces résultats quand on regarde des parcours de navigation pour identifier les produits qui se retrouvent fréquemment sur le \og chemin \fg{} entre 2 produits. Dans la suite, nous allons utiliser deux autres mesures qui, contrairement aux précédentes, sont moins visuelles et plus abstraites.
+
+\subsection{Centralité de vecteur propre}
+\paragraph{}
+Nous en venons donc à un quatrième indicateur appelé \textbf{centralité de vecteur propre} (ou encore centralité spectrale). Comme son nom l'indique, cette mesure découle de la notion de vecteur propre. Elle nous permet de mesurer l'influence et d'attribuer des scores relatifs à tous les nœuds d'un réseau. Pourquoi ? Si l'on note $C_i$ cette mesure de centralité pour le nœud $i$, alors :\\
+\begin{center}
+$C_i$ est proportionnelle à $\sum\limits_{j~voisin~de~i}C_j$ $\Leftrightarrow$ $C_i = \lambda\sum\limits_{j}g_{ij}C_j$\\ (ou encore $C=\lambda g C$ avec $g$ matrice d'adjacence du graphe $G$)
+\end{center}
+On compte ainsi les centralités des nœuds $j$ avec lesquels le nœud $i$ est connecté, ce qui donne un système d'équations et d'inconnues : d'où la notion de vecteur propre. D'un point de vue mathématique, il existe en général plusieurs valeurs propres et vecteurs propres solutions. Cependant, en vertu du théorème de \textit{Perron-Frobenius}, si l'on impose que les coefficients du vecteur propre doivent être positifs, alors il existe une unique solution pour la mesure de centralité souhaitée, qui nous est fournie par la plus grande valeur propre $\lambda$. Pour cette mesure, les résultats donnent encore une fois un classement différents et sont à la page suivante.
+\begin{center}
+\includegraphics[scale=0.7]{Images/eigen.png}
+\captionof{figure}{Top 30 des produits selon la centralité de vecteur propre}
+\label{fig1}
+\end{center}
+\paragraph{}
+\paragraph{}
+On peut donc remarquer que certains scores sont très faibles et même nuls pour certains, cela vient de la nature même de la mesure puisque ce sont des valeurs propres. On obtient ces scores à partir de la fonction \textit{eigenvector\_centrality} en Python. Il est à noter que pour le cas d'un graphe orienté, cette fonction utilise la \og left \fg{} \textit{eigenvector centrality} dans le sens où les voisins considérés pour un nœud $j$ sont les nœuds $i$ qui pointent vers lui. L'aide de la fonction nous précise également que le calcul des vecteurs propres se fait par la méthode \textbf{power iteration} sur laquelle se base également la dernière mesure que nous allons utiliser : la méthode \textbf{PageRank}. Nous allons donc détailler tout cela dans la prochaine partie.
+\subsection{L'algorithme PageRank de Google}
+\paragraph{}
+Historiquement, cette méthode était utilisée pour classer les sites web par domaines, et désormais c'est l'algorithme utilisé par les moteurs de recherche. Le principe est de calculer l'importance d'une page (d'un nœud) en étudiant ses liens (entrants et sortants) dans le graphe. On retrouve deux idées derrière cette méthode :
+\begin{itemize}
+\item Donner de l'importance aux pages souvent citées
+\item Donner de l'importance aux pages citées par des pages importantes (on retrouve la notion de prestige des voisins)
+\end{itemize}
+On peut donc s'inspirer de cette méthode en la transposant à notre problème, les pages web devenant les différents produits. Si l'on considère les liens entrants comme des votes :
+\begin{itemize}
+\item Le poids d'un vote est proportionnel à l'importance du nœud source
+\item Le poids d'un vote est inversement proportionnel au nombre de votes de son nœud source
+\item L'importance d'un nœud est égale à la somme des poids des votes vers ce nœud
+\end{itemize}
+\begin{center}
+\includegraphics[scale=0.7]{Images/vote.png}
+\captionof{figure}{Illustration des principes énoncés précédemment : $r_j = \frac{r_a}{4}+\frac{r_b}{2}$}
+\label{fig1}
+\end{center}
+En généralisant, on arrive donc au système d'équations :
+\begin{center}
+$\forall j, r_j=\sum\limits_{i~\rightarrow~j}\frac{r_i}{d_i}$
+\end{center}
+En ajoutant la contrainte suivante sur les poids :
+\begin{center}
+$\sum\limits_{i}r_i = 1$
+\end{center}
+Et en notant la matrice M stochastique :
+\begin{center}
+$$
+M_{ij} = \left\{
+    \begin{array}{ll}
+        \frac{1}{d_i} & \mbox{si } i \rightarrow j \\
+        0 & \mbox{sinon.}
+    \end{array}
+\right.
+$$
+\end{center}
+On cherche $r$ tel que $r = Mr$. On en revient encore une fois au problème de trouver un vecteur propre. Comme pour la centralité de vecteur propre, le calcul se fait à partir de l'algorithme \textbf{power iteration} qui s'exprime de la façon suivante :
+\begin{algorithm}
+\caption{Algorithme power iteration}
+\begin{algorithmic}
+\REQUIRE 
+\STATE Matrice de transitions M
+\STATE $t=1$
+\STATE $r(t)=
+\begin{pmatrix}
+\frac{1}{n} \\
+\frac{1}{n}\\
+\vdots \\
+\frac{1}{n}
+\end{pmatrix}$
+\WHILE{Pas de convergence de l'algorithme (\textit{i.e} : r(t) et r(t-1) dissimilaires)}
+\STATE $t = t+1$
+\FOR {j = 1,...,n}
+\STATE $r_j(t)=0$
+\FOR {i prédecesseur de j}
+\STATE $r_j(t)$ += $\frac{r_i(t-1)}{d_i}$
+\ENDFOR
+\ENDFOR
+\ENDWHILE
+\RETURN Vecteur $r(t)$
+\end{algorithmic}
+\end{algorithm}
+\paragraph{}
+La preuve de convergence de cet algorithme est issue des processus de marches aléatoires (un graphe peut être vu comme une chaîne de Markov). Pour cela il faut que $M$ soit :
+\begin{itemize}
+\item \textbf{Stochastique} : les lignes somment à 1 (matrice de transition d'une chaîne de Markov)
+\item \textbf{Irréductible} : il existe une probabilité non nulle d'aller d'un nœud quelconque $i$ à un autre nœud quelconque $j$ : $M_{i,j} > 0$
+\item \textbf{Apériodique} : il n'existe pas $(k, i)$ tels que l'intervalle entre deux visites de $i$ est \textbf{toujours} un multiple de $k$
+\end{itemize}
+Si ce n'est pas respecté, on peut se retrouver en présence de 2 cas problématiques :
+\begin{center}
+\includegraphics[width=18cm]{Images/pb.png}
+\captionof{figure}{Ces 2 types de configuration posent problème}
+\label{fig1}
+\end{center}
+Que l'on peut résoudre ainsi en informatique :
+\begin{center}
+\includegraphics[width=18cm]{Images/teleportation.png}
+\captionof{figure}{On autorise la téléportation pour résoudre le problème de blocage}
+\label{fig1}
+\end{center}
+
+\paragraph{}
+La fonction \textit{pagerank} implémentée dans la librairie \textit{NetworkX} de python utilise la formulation de \textbf{Google} pour effectuer les calculs :
+\begin{center}
+$r_j = \sum\limits_{i~\rightarrow~j}\alpha\frac{r_i}{d_i}+(1-\alpha)\frac{1}{n}$
+\end{center}
+Les valeurs typiques pour $\alpha$ se situent entre $0.8$ et $0.9$. Pour cette raison nous alons fixer $\alpha=0.85$ et laisser le nombre d'itérations maximum de l'algorithme \textbf{power iteration} par défaut (égal à 100). L'algorithme a bien convergé et les résultats sont les suivants :
+\begin{center}
+\includegraphics[scale=0.7]{Images/pagerank.png}
+\captionof{figure}{Top 30 des produits selon l'algorithme PageRank}
+\label{fig1}
+\end{center}
+
+\paragraph{}
+D'autres indicateurs auraient pu être essayés, tels que la \textbf{centralité de Katz} par exemple, mais l'idée de cette mesure repose sur la notion de prestige des voisins d'un nœud et dans cette étude on n'a pas d'informations sur le prestige des DVD. Pour cette raison, il n'a donc pas été jugé nécessaire d'utiliser cette mesure.  
+\subsection{Combinaison des différents indicateurs}
+\paragraph{}
+Après avoir regardé ces différentes méthodes, on s'aperçoit que les résultats changent à chaque fois, du fait de la nature même de chaque mesure. Une question que l'on pourrait se poser serait \og Quelle est la meilleure ? \fg{}. Cependant c'est comme lorsqu'on choisit un modèle statistique, on effectue notre choix selon un \textbf{critère}. Si l'on avait un critère particulier à respecter, en fonction de la définition mathématique de chaque méthode ou algorithme on pourrait donc en privilégier une. Dans cette étude, l'approche va être différente puisque l'on va combiner les résultats. On ne va pas accorder plus d'importance à une méthode qu'à une autre, la procédure est la suivante :
+\begin{itemize}
+\item On normalise les scores de chaque produit pour chaque méthode par rapport au score maximum (fonction \textit{MaxAbsScaler} en Python)
+\item On additionne les scores normalisés de chaque produit pour obtenir un score cumulé des méthodes
+\end{itemize}
+Cette procédure est totalement arbitraire et ne devra pas forcément être utilisée dans tous les cas, elle va nous servir simplement dans le cadre de ce projet à résumer l'information renvoyée par chaque indicateur de centralité/importance. On va donc classer les produits selon un critère \og d'homogénéité \fg{}, dans le sens où ce sont les produits les plus \og complets \fg{} au sens de la combinaison des différents indicateurs étudiés, qui seront désignés comme étant les meilleurs.
+\newpage
+Le classement des produits renvoyé par cette manœuvre est le suivant :
+\begin{center}
+\includegraphics[scale=0.7]{Images/top30.png}
+\captionof{figure}{Top 30 des produits avec la combinaison des méthodes}
+\label{fig1}
+\end{center}
+\paragraph{}
+En fonction des critères que nous nous sommes fixés, nous avons à présent identifié les DVD centraux dans le graphe. Nous allons désormais pouvoir passer à la dernière partie de cette étude qui concerne la prédiction de liens. Pour cela nous allons présenter la méthode choisie et les résultats qu'elle renvoie sur quelques un des premiers DVD de la liste établie.
+\section{Prédiction de liens}
+\paragraph{}
+On aurait pu être tenté d'arrêter l'étude à la simple identification des nœuds centraux du graphe et ensuite pour chacun d'entre eux, d'effectuer des recommandations basées sur les voisins de chaque produit dans le graphe. Cependant, un réseau est une structure dynamique, qui est amenée à évoluer au fil du temps. Un des enjeux va donc être de pouvoir modéliser le comportement d'une telle structure afin de tenter de prédire la forme qu'elle aura par la suite. Plus particulièrement dans notre cas, nous nous intéressons aux produits qui ont été achetés ensemble. On travaille donc sur ce que l'on a observé, mais le but est d'enrichir l'analyse en essayant de définir quels produits pourraient également intéresser un acheteur, d'inférer sur de nouvelles combinaisons de produits qui n'existent pas encore. Pour cela, on va attribuer un score de \og proximité \fg{} ou de similarité à chaque paire de nœuds $(i,j)$.
+\paragraph{}
+Une façon d'y parvenir est d'utiliser l'index \textbf{Adamic-Adar}. Il existe évidemment d'autres méthodes de prédictions, mais dans cette étude nous n'allons utiliser que celle-là car les résultats sont assez similaires en général entre les différentes méthodes qui se basent sur le concept du voisinage d'un nœud. De manière mathématique, l'index \textbf{Adamic-Adar} se définit de la manière suivante pour deux nœuds $u$ et $v$ :\\
+\begin{center}
+$AA_{index}(u,v) = \sum\limits_{w \in \Gamma(u)\cap\Gamma(v)}\frac{1}{log|\Gamma(w)|}$
+\end{center}
+où $\Gamma(u)$ désigne l'ensemble des voisins d'un nœud $u$.
+\paragraph{}
+Toutefois, comme le précise la documentation de \textit{NetworkX}, la fonction \textit{adamic\_adar\_index} n'est adaptée qu'aux graphes non-orientés. Pour utiliser cet indicateur il a donc fallu procéder à une adaptation de la fonction afin de la rendre compatible à notre problème (considérer les voisins, que le lien soit entrant ou sortant dans un graphe orienté). En utilisant cette méthode, voici donc quelques prédictions que l'on peut faire pour les produits que nous avons identifiés comme étant les plus importants. Pour le DVD \textbf{Cujo} identifié comme étant le n°1 de notre classement, on obtient les recommandations suivantes :\\
+\begin{center}
+\includegraphics[scale=0.7]{Images/cujo_pred.png}
+\end{center}
+On proposerait donc à un client en train de visionner/acheter le DVD \textbf{Cujo} de consulter également la page du DVD \textbf{Dragon} ou bien dans une moindre mesure \textbf{Derailed}. Encore une fois, les choix sont arbitraires sur le nombre de recommandations que l'on va juger pertinentes de faire. Ici on renvoie les 5 produits ayant obtenu l'index Adamic-Adar le plus élevé, mais il n'est pas forcément nécessaire d'aller aussi loin, ou bien au contraire on peut vouloir en renvoyer plus. Parfois, les résultats ne nous laissent pas le choix, comme par exemple pour le n°2 du classement, \textbf{Swope} :\\
+\begin{center}
+\includegraphics[scale=0.7]{Images/swope_pred.png}
+\end{center}
+Ici, on ne pourrait recommander que le DVD \textbf{Home}. On remarque également que l'index est plus faible entre \textbf{Swope} et \textbf{Home} ($\sim0.62$) que tout à l'heure entre \textbf{Cujo} et \textbf{Dragon} ($\sim1.44$). On recommanderait donc avec moins de confiance.
+\section{Bilan}
+\paragraph{}
+Comme nous l'avons énoncé dans les différentes parties qui précèdent, il n'y a pas de vérité absolue dans les résultats qui sont renvoyés. Premièrement parce qu'ils découlent de choix arbitraires qui doivent être faits par l'utilisateur en fonction du type de problème auquel il fait face, ainsi que de critères pour choisir une mesure plutôt qu'une autre ou pour effectuer un classement des nœuds dans le graphe.
+\paragraph{}
+Il existe une multitude de mesures de centralité, d'importance pour les nœuds d'un graphe, et dans ce projet seule une petite partie a été utilisée afin d'illustrer le principe de centralité dans la théorie des graphes.\\
+Il en va de même pour la prédiction. Ici, le choix de l'index Adamic-Adar a été fait, mais il existe d'autres mesures telles que les mesures de distance dans le graphe, les voisins communs, le coefficient de Jaccard ou encore la mesure de Katz. Toutes ces méthodes sont basées sur le concept de voisinage d'un nœud et renvoient donc des résultats similaires à ceux de l'index Adamic-Adar. C'est encore une fois un choix arbitraire.\\
+On pourrait également être tenté de calculer les prédictions pour chaque nœud, et les classer afin d'obtenir les prédictions de liens les plus fortes entre 2 produits, plutôt que de renvoyer pour chaque article un classement des produits avec lesquels il a le plus de chance d'avoir un lien dans le futur. Nous avons vu que cela pouvait parfois poser problème. La stratégie de prédiction est ouverte, comme le reste, et devra donc être définie selon un ou des critères bien précis.
+\paragraph{}
+A titre personnel, ce projet m'aura permis d'avoir une première approche concrète d'application de la théorie des graphes à un problème de recommandations de produits. Cela me permet également d'appréhender et de me familiariser avec les outils permettant de répondre à ce type de problème, ce qui n'est pas négligeable étant donné que lors de mon stage de fin d'études au sein de \textbf{Cdiscount} je serai confronté à un problème d'optimisation des recommandations de produits par segment de clients. Grâce à ce projet, j'ai donc pu avoir une première approche, et quelques idées pour répondre à une partie du problème. Cependant, dans ce projet nous n'avons utilisé qu'un petit échantillon qui ne reflète pas du tout la taille des données manipulées en entreprise. Il faudra donc probablement adapter certaines méthodes qui ne pourront pas être utilisées telles quelles.
+\paragraph{}
+L'ensemble des codes ayant permis la réalisation de ce projet (extraction des produits d'intérêt, nettoyage des données, calcul des différents scores, écriture des résultats, ...) est disponible sur GitHub à l'adresse suivante :
+\begin{center}
+\textit{\textcolor{blue}{\url{https://github.com/guillaumelf/reco}}}
+\end{center}
+
+\section{Sources}
+\begin{flushleft}
+- \textbf{Source des données} : \textit{\textcolor{blue}{http://snap.stanford.edu/data/amazon0601.html}}\\
+\medskip
+- \textbf{Documentation de NetworkX} : \textit{\textcolor{blue}{https://networkx.github.io/documentation/stable/reference/index.html}}\\
+\medskip
+- \textbf{J. Leskovec, L. Adamic and B. Adamic} : \textit{The Dynamics of Viral Marketing. ACM Transactions on the Web (ACM TWEB), 1(1), 2007}
+\end{flushleft}
+
+\end{document}
